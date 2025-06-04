@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>情緒圖片與資料視覺化</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 2rem; }
+    input, button { padding: 0.5rem 1rem; font-size: 1rem; width: 60%; }
+    img { max-width: 300px; margin-top: 1rem; border-radius: 12px; }
+    #result { margin-top: 2rem; }
+    canvas { max-width: 400px; margin-top: 2rem; }
+  </style>
+</head>
+<body>
+  <h1>情緒圖片與資料視覺化</h1>
+  <input id="inputText" type="text" placeholder="輸入一段文字..." />
+  <button onclick="analyzeEmotion()">分析情緒</button>
+
+  <div id="result"></div>
+  <canvas id="emotionChart"></canvas>
+
+  <script>
+    const emotionKeywords = {
+      '快樂': ['快樂', '開心', '喜悅', '高興', '幸福'],
+      '悲傷': ['悲傷', '難過', '哭', '失落'],
+      '生氣': ['生氣', '憤怒', '爆氣', '火大'],
+      '驚訝': ['驚訝', '驚喜', '意外'],
+      '恐懼': ['恐懼', '害怕', '擔心'],
+      '厭惡': ['討厭', '厭惡', '反感'],
+      '平靜': ['平靜', '放鬆', '冷靜', '舒服'],
+      '期待': ['期待', '興奮', '盼望']
+    };
+
+    const emotionImages = {
+      '快樂': 'https://media.istockphoto.com/id/1167770705/zh/%E7%85%A7%E7%89%87/%E5%B9%B4%E8%BC%95%E7%9A%84%E5%8D%B0%E5%BA%A6%E7%94%B7%E5%AD%90%E7%A9%BF%E8%91%97%E6%A9%99%E8%89%B2%E6%AF%9B%E8%A1%A3%E5%9C%A8%E5%AD%A4%E7%AB%8B%E7%9A%84%E7%99%BD%E8%89%B2%E8%83%8C%E6%99%AF%E6%89%B9%E5%87%86%E5%81%9A%E7%A9%8D%E6%A5%B5%E7%9A%84%E5%A7%BF%E6%85%8B%E8%88%87%E6%89%8B%E8%B1%8E%E8%B5%B7%E5%A4%A7%E6%8B%87%E6%8C%87%E5%BE%AE%E7%AC%91%E5%92%8C%E9%AB%98%E8%88%88%E7%9A%84%E6%88%90%E5%8A%9F%E7%8D%B2%E5%8B%9D%E8%80%85%E6%89%8B%E5%8B%A2.jpg?s=612x612&w=0&k=20&c=31oHOYQbJ4kFeJsUcGxZzw6MVO5pVip-gTzZn0Vat3g=',
+      '悲傷': 'https://media.istockphoto.com/id/1374841003/zh/%E7%85%A7%E7%89%87/young-woman-crying.jpg?s=612x612&w=0&k=20&c=428AIqswqR_aFR-zh8ECbEPhcQhHw3sOBcZZHYoaGpE=',
+      '生氣': 'https://media.istockphoto.com/id/465251909/zh/%E7%85%A7%E7%89%87/angry-businessman-shouting.jpg?s=612x612&w=0&k=20&c=KmATf8iFXGGYwRjzS5V77MhvYC8HThTMR0gXSlGRoHs=',
+      '驚訝': 'https://media.istockphoto.com/id/626205158/zh/%E7%85%A7%E7%89%87/portrait-of-young-man-with-shocked-facial-expression.jpg?s=612x612&w=0&k=20&c=XUZf8tJ7YvdswzZC-DxrhuZ2TGRhg6HXlXjbH5MI_3g=',
+      '恐懼': 'https://media.istockphoto.com/id/527879691/zh/%E7%85%A7%E7%89%87/scared-man.jpg?s=612x612&w=0&k=20&c=MW1azuQDLiIlM3vd1h5EI8TDPrvtc0EXITrggYgRu-8=',
+      '厭惡': 'https://media.istockphoto.com/id/924923754/zh/%E7%85%A7%E7%89%87/%E5%B9%B4%E8%BC%95%E7%94%B7%E5%AD%90%E5%8F%8D%E6%84%9F%E8%A1%A8%E9%81%94%E6%93%8A%E9%80%80%E7%9A%84%E6%9D%B1%E8%A5%BF-%E5%9C%A8%E7%B2%89%E5%BD%A9%E5%AD%A4%E7%AB%8B.jpg?s=612x612&w=0&k=20&c=0gBSieNgl6V8oHakKoLZ2_oxjH5N5LbYLmTb6hSNfN8=',
+      '平靜': 'https://media.istockphoto.com/id/1391812172/zh/%E7%85%A7%E7%89%87/relaxed-man-breathing-fresh-air.jpg?s=612x612&w=0&k=20&c=n11kpsK1X5AUUNiXBxwjfWO6YVCqOrx4qGwAih3ESls=',
+      '期待': 'https://media.istockphoto.com/id/1271958369/zh/%E7%85%A7%E7%89%87/%E4%BD%A0%E6%89%80%E7%9B%B8%E4%BF%A1%E7%9A%84-%E4%BD%A0%E5%8F%AF%E4%BB%A5.jpg?s=612x612&w=0&k=20&c=7R0IIeiWsuIPYIwIDer0-_hvcHRR27qcLzQBZgvYanc='
+    };
+
+    let chart;
+
+    function analyzeEmotion() {
+      const text = document.getElementById('inputText').value.toLowerCase();
+      const scores = {};
+      let topEmotion = '';
+      let maxScore = -1;
+
+      for (const [emotion, keywords] of Object.entries(emotionKeywords)) {
+        let count = 0;
+        for (const keyword of keywords) {
+          if (text.includes(keyword)) count++;
+        }
+        scores[emotion] = count;
+        if (count > maxScore) {
+          maxScore = count;
+          topEmotion = emotion;
+        }
+      }
+
+      // 若完全無命中則顯示預設
+      if (maxScore === 0) topEmotion = '快樂';
+
+      const imageUrl = emotionImages[topEmotion];
+      document.getElementById('result').innerHTML = `
+        <h2>主要情緒：${topEmotion}</h2>
+        <img src="${imageUrl}" alt="${topEmotion}" />
+      `;
+
+      const labels = Object.keys(scores);
+      const data = Object.values(scores);
+
+      if (chart) chart.destroy(); // 重繪前先清除舊圖表
+
+      chart = new Chart(document.getElementById('emotionChart'), {
+        type: 'pie',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '情緒比重',
+            data: data,
+            backgroundColor: [
+              '#f39c12', '#3498db', '#e74c3c', '#9b59b6',
+              '#1abc9c', '#34495e', '#95a5a6', '#e67e22'
+            ]
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'bottom' },
+            title: { display: true, text: '情緒分析結果（非 AI，純關鍵字推估）' }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
